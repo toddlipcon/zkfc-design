@@ -12,6 +12,7 @@
 \setlength\parindent{0.25in}
 \title{ZK Failover Controller Design}
 \author{Todd Lipcon\\todd@cloudera.com}
+\usepackage{hyperref}
 \usepackage{graphicx}
 \begin{document}
 \maketitle
@@ -101,6 +102,7 @@ The ZKFC is itself relatively simple. It runs the following process:
   \begin{itemize}
   \item {\tt SERVICE\_HEALTHY} - instruct the elector to join the election if not yet joined
   \item {\tt HEALTH\_MONITOR\_FAILED} - abort the whole ZKFC process, since it can no longer function as designed
+  \item {\tt INITIALIZING} - in this case, the local node has just restarted, and not ready to service calls. Quits the election, and indicates that fencing is unnecessary, since the NameNode always starts in Standby state.
   \item Other states - quit the election if currently in the election
   \end{itemize}
 \item When the ActiveStandbyElector instructs a change, respond as follows:
@@ -154,7 +156,9 @@ The ZKFC runs in a separate process which is designed to be very simple. However
 
 \subsection{ZooKeeper crash}
 
-If ZooKeeper itself crashes, then both ZKFCs will receive a {\tt DISCONNECTED} event at the same time. Upon this event, they call {\tt enterNeutralMode} on the local NameNode, but neither makes any change in state. Thus, the system keeps running while ZooKeeper is down -- it is just unable to perform a failover. When ZooKeeper returns, the two nodes will race to achieve the lock. Depending on who wins the race, an unnecessary failover may be triggered.
+If ZooKeeper itself crashes, then both ZKFCs will receive a {\tt DISCONNECTED} event at the same time. Upon this event, they call {\tt enterNeutralMode} on the local NameNode, but neither makes any change in state. Thus, the system keeps running while ZooKeeper is down -- it is just unable to perform a failover.
+
+When ZooKeeper returns, the clients will immediately reconnect. ZooKeeper's behavior is such that client sessions that were present before the crash are allowed to re-acquire their session so long as they reconnect within their session timeout, starting at the time of restart\footnote{See \url{https://cwiki.apache.org/confluence/display/ZOOKEEPER/FAQ}, confirmed by phunt}. So, both nodes will regain their session correctly and no unnecessary failovers will be triggered.
 
 {\bf Future work:} the breadcrumb znode could be used in this circumstance to give preference to the node that was active before the ZK outage.
 
