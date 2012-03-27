@@ -14,6 +14,8 @@
 \author{Todd Lipcon\\todd@cloudera.com}
 \usepackage{hyperref}
 \usepackage{graphicx}
+\usepackage{graphviz}
+\usepackage{verbatim}
 \begin{document}
 \maketitle
 \tableofcontents
@@ -130,6 +132,11 @@ HADOOP-8163 enhanced the ActiveStandbyElector design to provide hooks for fencin
 \item When quitting the election, allow the quitting node to specify whether it may need fencing. If it does not need fencing, delete the breadcrumb node before closing the ZooKeeper session.
 \end{enumerate}
 
+\subsection{ZKFC State machine diagram}
+
+\includedot[scale=0.5]{state-machine}
+
+
 \section{Example scenarios}
 
 \subsection{Active NN JVM crash}
@@ -187,4 +194,7 @@ Instead, one could imagine the ZKFC process actually starting (and restarting) t
 
 TBD
 
+\section{Revision history}
+
+\verbatiminput{|"git log"}
 \end{document}

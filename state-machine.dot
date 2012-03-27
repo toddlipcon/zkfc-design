@@ -1,0 +1,67 @@
+digraph state_machine {
+  rankdir=TB;
+  root = INIT;
+  ranksep=1;
+  nodesep=1;
+  node [ shape = "circle" fillcolor=lightblue style=filled ]; 
+  IN_E  [ label="In election" ];
+  OUT_E [ label="Not in election" ];
+
+  node [ fillcolor = red ]
+  ABORT [shape="box" label="Abort ZKFC" ];
+
+  node [ fillcolor = "#ccffcc" ]
+  INIT  [shape="doublecircle" label="Initialization"];
+
+  node [ fillcolor=yellow ]
+  QUIT_E_NO_FENCE [shape="box" label = "quitElection(no need to fence)"]; 
+  QUIT_E_FENCE    [shape="box" label = "quitElection(need fence)"]; 
+  JOIN_E          [shape="box" label = "joinElection()"]; 
+  BECOME_ACTIVE   [shape="box" label = "transitionToActive()"];
+  BECOME_STANDBY  [shape="box" label = "transitionToStandby()"]; 
+
+  // Initial state
+  INIT -> OUT_E;
+
+  // Health monitor inputs
+  OUT_E -> JOIN_E [ label="HM: SERVICE_HEALTHY" ];
+  OUT_E -> ABORT [ label="HM: HEALTH_MONITOR_FAILED" ];
+  OUT_E -> ABORT [ label="ASE: become*" ];
+  IN_E -> QUIT_E_NO_FENCE [ label="HM: INITIALIZING" ];
+  IN_E -> QUIT_E_FENCE [ label="HM: SERVICE_UNHEALTHY_*" ];
+
+  // Elector inputs
+  IN_E -> BECOME_ACTIVE [ label="ASE: becomeActive()" ];
+  IN_E -> BECOME_STANDBY [ label="ASE: becomeStandby()" ];
+  IN_E -> IN_E [ label="ASE: enterNeutralMode" ];
+  IN_E -> ABORT [ label="ASE: notifyFatalError" ];
+
+  subgraph cluster_x {
+    QUIT_E_FENCE; QUIT_E_NO_FENCE; JOIN_E;
+    label="ActiveStandbyElector API"
+  }
+
+  subgraph cluster_y {
+    BECOME_ACTIVE; BECOME_STANDBY;
+    label="HAServiceProtocol API";
+  }
+
+  // Actions
+  {
+  QUIT_E_NO_FENCE -> OUT_E;
+  QUIT_E_FENCE -> OUT_E;
+  JOIN_E -> IN_E;
+
+  BECOME_ACTIVE -> IN_E;
+  BECOME_STANDBY -> IN_E;
+  }
+
+  { rank = same; OUT_E; INIT;  }
+
+  // Some cleanup
+  edge [style=invis]
+  {
+    OUT_E -> ABORT;
+    BECOME_ACTIVE -> IN_E;
+  }
+}
